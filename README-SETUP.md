@@ -1,5 +1,5 @@
-# Landfill Waste Weighing & Monitoring — v1.1.0 (PUBLIC ACCESS)
-Release date: October 30, 2026. Cumulative update based on v1.0.0; your existing IndexedDB data and backup format remain compatible.
+# Landfill Waste Weighing & Monitoring — v1.1.1 (PUBLIC ACCESS — VERSION & CACHE FIX)
+Release date: October 30, 2026. Cumulative update based on v1.1.1; your existing IndexedDB data and backup format remain compatible.
 
 ## Summary
 - GitHub Pages hosts the website; Firebase Firestore `waste-weighing-2f9a2` syncs the shared data.
@@ -14,7 +14,7 @@ Release date: October 30, 2026. Cumulative update based on v1.0.0; your existing
 2. Extract this ZIP. Upload **all files inside the ZIP** to the root of your existing GitHub Pages repository, replacing the old versions. Do not upload the ZIP alone. Preserve the original repository URL and folder to retain offline data on existing devices.
 3. The ZIP already includes your supplied `firebase-config.js`; **do not replace it with placeholder config**. It specifies project `waste-weighing-2f9a2`.
 4. Verify GitHub repository → Settings → Pages → Deploy from a branch → `main` / `/ (root)`.
-5. In each browser, open the GitHub Pages URL while online. Refresh to fetch v1.1.0 if the prior service worker is still controlling it. Check the displayed version.
+5. In each browser, open the GitHub Pages URL while online. Refresh to fetch v1.1.1 if the prior service worker is still controlling it. Check the displayed version.
 
 ## CRITICAL: publish the NEW public Firestore rules
 GitHub Pages cannot publish Firestore security rules automatically. In the [Firebase Console](https://console.firebase.google.com/), open project **waste-weighing-2f9a2** → **Firestore Database** → **Rules**. Paste the FULL content of the included `firestore.rules`, then click **Publish**. This replaces the old `members`/role rules and allows public reads and validated writes to three shared collections (`entries`, `trucks`, `drivers`).
@@ -39,10 +39,10 @@ These Firestore rules intentionally permit unauthenticated internet users to rea
 - Working online with multiple operators can produce simultaneous corrections or fleet updates; review data quality flags. Offline conflict resolution is not guaranteed.
 
 ## Contents
-- `index.html` (main app), `styles.css`, `app.js` (v1.1.0)
+- `index.html` (main app), `styles.css`, `app.js` (v1.1.1)
 - `firebase-config.js` (your real supplied Firebase project config)
 - `firestore.rules` (NEW public rules for this release — publish manually)
-- `sw.js` (v1.1.0 offline shell)
+- `sw.js` (v1.1.1 offline shell)
 - `manifest.webmanifest`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png` (your uploaded icons)
 - `version.json` (check updates), `.nojekyll`, this README
 
@@ -53,4 +53,23 @@ These Firestore rules intentionally permit unauthenticated internet users to rea
 4. Verify correction, void event history, monthly totals, CSV and JSON backup/restore.
 5. Confirm correct Firebase rules are published and monitor unexpected public writes.
 
-Release notes: v1.1.0 removes the prior Firebase sign-in and role checks, uses the existing supplied project config and updated icons, and preserves v1.0.0 features. It is NOT a secure private app.
+Release notes: v1.1.1 removes the prior Firebase sign-in and role checks, uses the existing supplied project config and updated icons, and preserves v1.0.0 features. It is NOT a secure private app.
+
+
+## v1.1.1 fixes
+
+- **App version:** The Settings > System information label now matches the sidebar, footer, JavaScript, service-worker cache and `version.json`. All display labels read from the JS version source once loaded.
+- **Mixed-version startup fix:** Every app update uses new versioned `app.js`, `styles.css`, and `firebase-config.js` asset URLs to prevent the previous service worker from combining v1.0.0 JavaScript with v1.1.x HTML. The old `loginForm` startup error was due to an outdated script running against the no-login public version.
+- **Logo fit:** The supplied truck-and-scale logo is constrained to its sidebar icon box, rather than overlapping navigation text. Home-screen icons remain unchanged.
+- **App updates:** Check Updates requests a new service worker before reloading to a version-tagged URL.
+- **No Firebase setup change:** Your provided Firebase config and public Firestore rules are included unchanged. If they are already correctly published for v1.1.0, no need to republish them.
+
+### Updating installed phones and computers
+
+1. **Back up** local records in Settings before doing a major update, especially if any records are pending sync.
+2. Replace **all** original files in the GitHub repository root with the v1.1.1 package (do not upload the ZIP itself); wait for Pages to deploy.
+3. While online, visit the normal GitHub Pages URL and refresh. If the old screen remains, open the URL with `?app-update=1.1.1` once (example: `https://your-name.github.io/your-repo/?app-update=1.1.1`).
+4. Verify **v1.1.1** in sidebar, footer, and Settings. Your existing IndexedDB database name is preserved. Do not uninstall or clear website data if there are pending offline records.
+5. Test New Entry and Settings > Sync now on two devices with non-sensitive test data.
+
+Note: Source-code static checks and local browser checks do not verify Firebase Console's published rules or live cross-device synchronization.
