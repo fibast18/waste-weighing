@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function memberPath() { return /databases/$(database)/documents/members/$(request.auth.uid); }
+    function approved() {
+      return signedIn() && exists(memberPath()) && get(memberPath()).data.active == true;
+    }
+    function role() { return get(memberPath()).data.role; }
+    function canWrite() { return approved() && role() in ['admin','encoder']; }
+    function admin() { return approved() && role() == 'admin'; }
+
+    // Membership is granted only by a Firebase project administrator in the console.
+    // Users can inspect only their own approval; no client can grant itself access.
+    match /members/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || admin());
+      allow list: if admin();
+      allow write: if false;
+    }
+
+    // Append-only immutable weighing events. Corrections and voids are new events.
+    match /entries/{entryId} {
+      allow read: if approved();
+      allow create: if canWrite()
+        && request.resource.data.keys().hasAll(['id','kind','rootId','supersedesId','truckId','truckCode','driverId','driverName','date','time','category','tareKg','grossKg','netKg','notes','createdAt','createdBy'])
+        && request.resource.data.keys().hasOnly(['id','kind','rootId','supersedesId','truckId','truckCode','driverId','driverName','date','time','category','tareKg','grossKg','netKg','notes','createdAt','createdBy','deviceId'])
+        && request.resource.data.id == entryId
+        && request.resource.data.kind in ['measurement','void']
+        && request.resource.data.category in ['bio','nonbio']
+        && request.resource.data.tareKg is number
+        && request.resource.data.grossKg is number
+        && request.resource.data.netKg is number
+        && request.resource.data.tareKg >= 0
+        && request.resource.data.grossKg >= request.resource.data.tareKg
+        && request.resource.data.netKg == request.resource.data.grossKg - request.resource.data.tareKg
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.date is string
+        && request.resource.data.time is string
+        && request.resource.data.truckCode is string
+        && request.resource.data.driverName is string
+        && request.resource.data.notes is string
+        && request.resource.data.createdAt is number;
+      allow update, delete: if false;
+    }
+
+    match /trucks/{truckId} {
+      allow read: if approved();
+      allow create, update: if canWrite()
+        && request.resource.data.keys().hasAll(['id','code','tareKg','active','updatedAt'])
+        && request.resource.data.id == truckId
+        && request.resource.data.code is string
+        && request.resource.data.tareKg is number
+        && request.resource.data.tareKg >= 0
+        && request.resource.data.active is bool;
+      allow delete: if admin();
+    }
+    match /drivers/{driverId} {
+      allow read: if approved();
+      allow create, update: if canWrite()
+        && request.resource.data.keys().hasAll(['id','name','active','updatedAt'])
+        && request.resource.data.id == driverId
+        && request.resource.data.name is string
+        && request.resource.data.active is bool;
+      allow delete: if admin();
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
