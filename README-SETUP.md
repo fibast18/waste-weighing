@@ -1,5 +1,25 @@
-# Landfill Waste Weighing & Monitoring — v1.1.1 (PUBLIC ACCESS — VERSION & CACHE FIX)
-Release date: October 30, 2026. Cumulative update based on v1.1.1; your existing IndexedDB data and backup format remain compatible.
+# Landfill Waste Weighing & Monitoring — v1.1.2 (CLICKABLE DUPLICATE REVIEW)
+
+## New in v1.1.2 — find possible duplicate transactions immediately
+1. Open **AI Analytics**, select This week / This month / All records.
+2. In **Data quality checks**, click **Review matching records →** under the possible duplicate warning.
+3. The app opens **Logbook**, filters to **all records from matching groups**, shows their tare, gross, net, date/time, truck, driver and waste classification side by side, and labels matching groups.
+4. Compare original weighbridge tickets. If a transaction truly was entered twice, use **Void** on the incorrect duplicate and enter a reason. If only measurements were mistyped, use **Correct**. Both actions preserve audit history.
+5. Click **Clear review / Show all** to return to the full logbook. Review filter updates as records are corrected/voided; if no duplicates remain, the review banner states that.
+
+**This is a detection flag, not automatic deletion.** Two valid journeys with identical date, minute, truck, classification and net kg can match. The flag counts additional entries per identical group, while the Logbook displays all matching entries (e.g. 1 duplicate flag shows 2 entries).
+
+## Deployment notes
+- Upload **all 13 files** to the existing GitHub Pages repository root, keeping the same URL so IndexedDB data remains with the same site origin.
+- Offline shell and versioned assets bumped to `v1.1.2`; if cached old screens persist, append `?app-update=1.1.2` while online.
+- Your supplied `firebase-config.js` for `waste-weighing-2f9a2`, public `firestore.rules`, app icons, and local IndexedDB schema are carried over **unchanged**. No new Firestore collections, migrations, or rule changes are needed.
+- Back up data before replacing files; do not clear browser storage or uninstall while records are unsynced.
+- Public Firebase rules still allow unauthenticated data access and submissions. The duplicate review feature does not change database access security.
+
+---
+
+# Landfill Waste Weighing & Monitoring — v1.1.2 (PUBLIC ACCESS — VERSION & CACHE FIX)
+Release date: November 6, 2026. Cumulative update based on v1.1.1; your existing IndexedDB data and backup format remain compatible.
 
 ## Summary
 - GitHub Pages hosts the website; Firebase Firestore `waste-weighing-2f9a2` syncs the shared data.
@@ -14,7 +34,7 @@ Release date: October 30, 2026. Cumulative update based on v1.1.1; your existing
 2. Extract this ZIP. Upload **all files inside the ZIP** to the root of your existing GitHub Pages repository, replacing the old versions. Do not upload the ZIP alone. Preserve the original repository URL and folder to retain offline data on existing devices.
 3. The ZIP already includes your supplied `firebase-config.js`; **do not replace it with placeholder config**. It specifies project `waste-weighing-2f9a2`.
 4. Verify GitHub repository → Settings → Pages → Deploy from a branch → `main` / `/ (root)`.
-5. In each browser, open the GitHub Pages URL while online. Refresh to fetch v1.1.1 if the prior service worker is still controlling it. Check the displayed version.
+5. In each browser, open the GitHub Pages URL while online. Refresh to fetch v1.1.2 if the prior service worker is still controlling it. Check the displayed version.
 
 ## CRITICAL: publish the NEW public Firestore rules
 GitHub Pages cannot publish Firestore security rules automatically. In the [Firebase Console](https://console.firebase.google.com/), open project **waste-weighing-2f9a2** → **Firestore Database** → **Rules**. Paste the FULL content of the included `firestore.rules`, then click **Publish**. This replaces the old `members`/role rules and allows public reads and validated writes to three shared collections (`entries`, `trucks`, `drivers`).
@@ -39,10 +59,10 @@ These Firestore rules intentionally permit unauthenticated internet users to rea
 - Working online with multiple operators can produce simultaneous corrections or fleet updates; review data quality flags. Offline conflict resolution is not guaranteed.
 
 ## Contents
-- `index.html` (main app), `styles.css`, `app.js` (v1.1.1)
+- `index.html` (main app), `styles.css`, `app.js` (v1.1.2)
 - `firebase-config.js` (your real supplied Firebase project config)
 - `firestore.rules` (NEW public rules for this release — publish manually)
-- `sw.js` (v1.1.1 offline shell)
+- `sw.js` (v1.1.2 offline shell)
 - `manifest.webmanifest`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png` (your uploaded icons)
 - `version.json` (check updates), `.nojekyll`, this README
 
@@ -53,10 +73,10 @@ These Firestore rules intentionally permit unauthenticated internet users to rea
 4. Verify correction, void event history, monthly totals, CSV and JSON backup/restore.
 5. Confirm correct Firebase rules are published and monitor unexpected public writes.
 
-Release notes: v1.1.1 removes the prior Firebase sign-in and role checks, uses the existing supplied project config and updated icons, and preserves v1.0.0 features. It is NOT a secure private app.
+Release history: v1.1.1 removed the prior Firebase sign-in and role checks, uses the existing supplied project config and updated icons, and preserves v1.0.0 features. It is NOT a secure private app.
 
 
-## v1.1.1 fixes
+## v1.1.1 fixes carried forward
 
 - **App version:** The Settings > System information label now matches the sidebar, footer, JavaScript, service-worker cache and `version.json`. All display labels read from the JS version source once loaded.
 - **Mixed-version startup fix:** Every app update uses new versioned `app.js`, `styles.css`, and `firebase-config.js` asset URLs to prevent the previous service worker from combining v1.0.0 JavaScript with v1.1.x HTML. The old `loginForm` startup error was due to an outdated script running against the no-login public version.
@@ -67,9 +87,9 @@ Release notes: v1.1.1 removes the prior Firebase sign-in and role checks, uses t
 ### Updating installed phones and computers
 
 1. **Back up** local records in Settings before doing a major update, especially if any records are pending sync.
-2. Replace **all** original files in the GitHub repository root with the v1.1.1 package (do not upload the ZIP itself); wait for Pages to deploy.
-3. While online, visit the normal GitHub Pages URL and refresh. If the old screen remains, open the URL with `?app-update=1.1.1` once (example: `https://your-name.github.io/your-repo/?app-update=1.1.1`).
-4. Verify **v1.1.1** in sidebar, footer, and Settings. Your existing IndexedDB database name is preserved. Do not uninstall or clear website data if there are pending offline records.
+2. Replace **all** original files in the GitHub repository root with the v1.1.2 package (do not upload the ZIP itself); wait for Pages to deploy.
+3. While online, visit the normal GitHub Pages URL and refresh. If the old screen remains, open the URL with `?app-update=1.1.2` once (example: `https://your-name.github.io/your-repo/?app-update=1.1.2`).
+4. Verify **v1.1.2** in sidebar, footer, and Settings. Your existing IndexedDB database name is preserved. Do not uninstall or clear website data if there are pending offline records.
 5. Test New Entry and Settings > Sync now on two devices with non-sensitive test data.
 
 Note: Source-code static checks and local browser checks do not verify Firebase Console's published rules or live cross-device synchronization.
