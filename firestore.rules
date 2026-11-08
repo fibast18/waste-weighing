@@ -1,77 +1,155 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // PUBLIC ACCESS EDITION v1.1.0
-    // CAUTION: any internet user can read or submit data through these rules.
-    // GitHub link possession is NOT a security boundary.
+    // LANDFILL WASTE WEIGHING v1.2.1 — PRIVATE RBAC
+    // Publish only AFTER a Firebase Auth account and matching Admin member document exist.
+    function memberPath() {
+      return /databases/$(database)/documents/members/$(request.auth.uid);
+    }
+    function signedIn() { return request.auth != null; }
+    function member() {
+      return signedIn()
+        && exists(memberPath())
+        && get(memberPath()).data.active == true
+        && get(memberPath()).data.role in ['admin', 'viewer', 'encoder'];
+    }
+    function admin() { return member() && get(memberPath()).data.role == 'admin'; }
+    function encoder() { return member() && get(memberPath()).data.role == 'encoder'; }
+    function idOk(v) { return v is string && v.size()>0 && v.size()<=150; }
+
     function validEntry(entryId) {
-      let d = request.resource.data;
+      let d=request.resource.data;
       return d.keys().hasAll([
-          'id','kind','rootId','supersedesId','truckId','truckCode',
-          'driverId','driverName','date','time','category','tareKg',
-          'grossKg','netKg','notes','createdAt','createdBy','deviceId'
-        ])
-        && d.keys().hasOnly([
-          'id','kind','rootId','supersedesId','truckId','truckCode',
-          'driverId','driverName','date','time','category','tareKg',
-          'grossKg','netKg','notes','createdAt','createdBy','deviceId'
-        ])
-        && d.id == entryId
-        && d.id is string && d.id.size() > 0 && d.id.size() <= 150
-        && d.kind in ['measurement','void']
-        && d.rootId is string && d.rootId.size() > 0 && d.rootId.size() <= 150
-        && d.supersedesId is string && d.supersedesId.size() <= 150
-        && d.truckId is string && d.truckId.size() > 0 && d.truckId.size() <= 150
-        && d.driverId is string && d.driverId.size() > 0 && d.driverId.size() <= 150
-        && d.truckCode is string && d.truckCode.size() > 0 && d.truckCode.size() <= 60
-        && d.driverName is string && d.driverName.size() > 0 && d.driverName.size() <= 100
-        && d.date is string && d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && d.time is string && d.time.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')
-        && d.category in ['bio','nonbio']
-        && d.tareKg is number && d.grossKg is number && d.netKg is number
-        && d.tareKg >= 0 && d.grossKg >= d.tareKg && d.grossKg <= 1000000
-        && d.netKg == d.grossKg - d.tareKg
-        && d.notes is string && d.notes.size() <= 1000
-        && d.createdAt is number
-        && d.createdBy is string && d.createdBy.size() <= 150
-        && d.deviceId is string && d.deviceId.size() <= 150;
+        'id','kind','rootId','supersedesId','truckId','truckCode','driverId','driverName',
+        'date','time','category','tareKg','grossKg','netKg','notes','createdAt','createdBy','deviceId'
+      ])
+      && d.keys().hasOnly([
+        'id','kind','rootId','supersedesId','truckId','truckCode','driverId','driverName',
+        'date','time','category','tareKg','grossKg','netKg','notes','createdAt','createdBy','deviceId'
+      ])
+      && d.id == entryId && idOk(d.id)
+      && d.kind in ['measurement','void']
+      && idOk(d.rootId)
+      && d.supersedesId is string && d.supersedesId.size()<=150
+      && idOk(d.truckId) && idOk(d.driverId)
+      && d.truckCode is string && d.truckCode.size()>0 && d.truckCode.size()<=60
+      && d.driverName is string && d.driverName.size()>0 && d.driverName.size()<=100
+      && d.date is string && d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+      && d.time is string && d.time.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$')
+      && d.category in ['bio','nonbio']
+      && d.tareKg is number && d.grossKg is number && d.netKg is number
+      && d.tareKg>=0 && d.grossKg>=d.tareKg && d.grossKg<=1000000
+      && d.netKg==d.grossKg-d.tareKg
+      && d.notes is string && d.notes.size()<=1000
+      && d.createdAt is number && d.createdAt>0
+      && d.createdBy is string && d.createdBy.size()<=150
+      && d.deviceId is string && d.deviceId.size()<=150;
+    }
+    function encoderOwnMeasurement(entryId) {
+      let d=request.resource.data;
+      return encoder()
+        && d.kind=='measurement'
+        && d.createdBy==request.auth.uid
+        && (
+          (d.supersedesId=='' && d.rootId==entryId)
+          || (
+            d.supersedesId!=''
+            && exists(/databases/$(database)/documents/entries/$(d.supersedesId))
+            && get(/databases/$(database)/documents/entries/$(d.supersedesId)).data.kind=='measurement'
+            && get(/databases/$(database)/documents/entries/$(d.supersedesId)).data.createdBy==request.auth.uid
+            && get(/databases/$(database)/documents/entries/$(d.supersedesId)).data.rootId==d.rootId
+          )
+        );
     }
     function validTruck(truckId) {
       let d=request.resource.data;
       return d.keys().hasAll(['id','code','tareKg','active','updatedAt'])
         && d.keys().hasOnly(['id','code','tareKg','active','updatedAt'])
-        && d.id == truckId && d.id is string && d.id.size() > 0 && d.id.size() <= 150
-        && d.code is string && d.code.size() > 0 && d.code.size() <= 60
-        && d.tareKg is number && d.tareKg >= 0 && d.tareKg <= 1000000
+        && d.id==truckId && idOk(d.id)
+        && d.code is string && d.code.size()>0 && d.code.size()<=60
+        && d.tareKg is number && d.tareKg>=0 && d.tareKg<=1000000
         && d.active is bool && d.updatedAt is number;
     }
     function validDriver(driverId) {
       let d=request.resource.data;
       return d.keys().hasAll(['id','name','active','updatedAt'])
         && d.keys().hasOnly(['id','name','active','updatedAt'])
-        && d.id == driverId && d.id is string && d.id.size() > 0 && d.id.size() <= 150
-        && d.name is string && d.name.size() > 0 && d.name.size() <= 100
+        && d.id==driverId && idOk(d.id)
+        && d.name is string && d.name.size()>0 && d.name.size()<=100
         && d.active is bool && d.updatedAt is number;
     }
-
+    function validMember(uid) {
+      let d=request.resource.data;
+      return d.keys().hasAll(['uid','email','name','role','active','createdAt','updatedAt'])
+        && d.keys().hasOnly(['uid','email','name','role','active','createdAt','updatedAt'])
+        && d.uid==uid && idOk(d.uid)
+        && d.email is string && d.email.size()>3 && d.email.size()<=254
+        && d.name is string && d.name.size()>0 && d.name.size()<=100
+        && d.role in ['admin','viewer','encoder']
+        && d.active is bool && d.createdAt is number && d.updatedAt is number;
+    }
+    function validRequest(requestId) {
+      let d=request.resource.data;
+      return d.keys().hasAll(['id','entryId','rootId','reason','createdBy','createdAt','status','reviewedBy','reviewedAt','decisionNote','resolutionEventId'])
+        && d.keys().hasOnly(['id','entryId','rootId','reason','createdBy','createdAt','status','reviewedBy','reviewedAt','decisionNote','resolutionEventId'])
+        && d.id==requestId && idOk(d.id)
+        && idOk(d.entryId) && idOk(d.rootId)
+        && d.reason is string && d.reason.size()>0 && d.reason.size()<=900
+        && d.createdBy is string && d.createdBy.size()>0 && d.createdBy.size()<=150
+        && d.createdAt is number && d.createdAt>0
+        && d.status in ['pending','approved','rejected']
+        && d.reviewedBy is string && d.reviewedBy.size()<=150
+        && d.reviewedAt is number
+        && d.decisionNote is string && d.decisionNote.size()<=600
+        && d.resolutionEventId is string && d.resolutionEventId.size()<=150;
+    }
     match /entries/{entryId} {
-      allow read: if true;
-      allow create: if validEntry(entryId);
-      // Immutable ledger: correction/void is a NEW event, not an edit or deletion.
+      allow read: if member();
+      allow create: if validEntry(entryId) && (admin() || encoderOwnMeasurement(entryId));
+      // Audit trail is append-only, including void and correction events.
       allow update, delete: if false;
     }
     match /trucks/{truckId} {
-      allow read: if true;
-      allow create, update: if validTruck(truckId);
+      allow read: if member();
+      allow create, update: if admin() && validTruck(truckId);
       allow delete: if false;
     }
     match /drivers/{driverId} {
-      allow read: if true;
-      allow create, update: if validDriver(driverId);
+      allow read: if member();
+      allow create, update: if admin() && validDriver(driverId);
       allow delete: if false;
     }
-    // Old membership records remain inaccessible to public clients.
-    match /members/{uid} { allow read, write: if false; }
+    match /members/{uid} {
+      // Personal membership check works before Admin role is bootstrapped.
+      allow get: if signedIn() && (request.auth.uid==uid || admin());
+      allow list: if admin();
+      allow create: if admin() && validMember(uid);
+      allow update: if admin() && validMember(uid)
+        && request.resource.data.uid==resource.data.uid
+        && request.resource.data.createdAt==resource.data.createdAt
+        // Prevent accidental self-downgrade, which can lock out the only Admin.
+        && (uid!=request.auth.uid || (request.resource.data.role=='admin' && request.resource.data.active==true));
+      allow delete: if false;
+    }
+    match /requests/{requestId} {
+      allow read: if member();
+      allow create: if encoder() && validRequest(requestId)
+        && request.resource.data.createdBy==request.auth.uid
+        && request.resource.data.status=='pending'
+        && request.resource.data.reviewedBy==''
+        && request.resource.data.reviewedAt==0
+        && request.resource.data.decisionNote==''
+        && request.resource.data.resolutionEventId==''
+        && exists(/databases/$(database)/documents/entries/$(request.resource.data.entryId));
+      allow update: if admin() && validRequest(requestId)
+        && resource.data.status=='pending'
+        && request.resource.data.status in ['approved','rejected']
+        && request.resource.data.reviewedBy==request.auth.uid
+        && request.resource.data.reviewedAt>0
+        && (request.resource.data.status=='rejected' || request.resource.data.resolutionEventId!='')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','reviewedBy','reviewedAt','decisionNote','resolutionEventId']);
+      allow delete: if false;
+    }
     match /{document=**} { allow read, write: if false; }
   }
 }
