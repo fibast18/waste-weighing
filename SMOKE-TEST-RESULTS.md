@@ -1,4 +1,4 @@
-# Verification results — v1.2.2
+# Verification results — v1.2.3
 
 Static tests passed on 6 Nov 2026:
 - Node.js syntax checks: `app.js`, `sw.js`, `firebase-config.js`
@@ -27,3 +27,7 @@ Static checks cover isolated secondary Firebase Authentication user creation, ro
 - Restored three duplicate-review helpers omitted from 1.2.1.
 - Verified JavaScript parse, version consistency, original Firebase config/rules hash, ZIP integrity and duplicate detection scenarios.
 - Run a browser smoke test after deployment to confirm Firebase login in your actual project.
+
+## v1.2.3 change note
+
+Sidebar developer label added above the monitoring-system label. App cache and all version labels advanced; existing Firebase config, RBAC rules and icons preserved unchanged. Static checks do not validate live Firebase or in-browser visual rendering.

@@ -1,4 +1,4 @@
-# Deployment acceptance checklist — v1.2.2
+# Deployment acceptance checklist — v1.2.3
 
 **Before migration**
 - [ ] Every device exports a JSON backup; document any unsynced entries.
@@ -43,3 +43,10 @@
 
 - [ ] Confirm pre-login screen shows version 1.2.2 and no `findPossibleDuplicates` startup error.
 - [ ] Sign in as first Admin and verify Users & Roles tab.
+
+## v1.2.3 UI acceptance checks
+
+- [ ] Desktop sidebar displays **Developed by: Engr. Rico J. Pono** directly above **LANDFILL MONITORING SYSTEM**.
+- [ ] New sidebar text wraps safely without hiding the version or navigation.
+- [ ] Existing page footer developer credit remains present.
+- [ ] Login, dashboard, all roles, sync and existing records still work as in v1.2.2.

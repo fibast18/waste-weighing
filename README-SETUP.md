@@ -1,4 +1,4 @@
-# LANDFILL WASTE WEIGHING & MONITORING — v1.2.2
+# LANDFILL WASTE WEIGHING & MONITORING — v1.2.3
 ## In-App User Management Edition | GitHub Pages + Firebase | 8 November 2026
 
 This is a cumulative upgrade from **v1.2.0**, retaining all v1.1.2 improvements. It preserves the seven main app features: Overview, New Entry, Logbook with clickable duplicate review, Reports/CSV/print PDF, built-in AI Analytics, Fleet & Drivers, Settings and JSON backups. It adds Firebase Authentication, approval records for three roles, an Admin-only Users & Roles page, and an Admin-only Void Requests page.
@@ -125,3 +125,10 @@ Fixed the `Can't find variable: findPossibleDuplicates` error on Safari during p
 5. Publish the included private firestore.rules if they have not already been published. Verify three-role access.
 
 No changes were made to your remote Firebase data or user accounts by generating this ZIP. The live Firebase login must still be checked on your deployed site.
+
+
+## v1.2.3 — Sidebar developer credit (Nov 8, 2026)
+
+Added **Developed by: Engr. Rico J. Pono** directly above **LANDFILL MONITORING SYSTEM** in the desktop/laptop left sidebar footer; adjusted typography for legibility. The existing page footer credit is retained. This is a presentation-only feature update: no changes to Firestore schema, Firebase configuration, access rules, IndexedDB stores/keys, records, app calculations or permissions.
+
+**Deploy:** Extract and upload the complete v1.2.3 ZIP to the existing GitHub Pages repository root, replacing the earlier files. Open the app while online and verify v1.2.3, then check the left sidebar. If the old offline cache persists, use Settings → Check for app updates, reload, or visit the URL with `?app-update=1.2.3`. **Do not clear browser website storage or uninstall while unsynced records may exist.** No Firebase rules republishing or database migration is needed for this release.

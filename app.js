@@ -1,6 +1,6 @@
 'use strict';
-/* Landfill Waste Weighing v1.2.2 — role-based Firebase Auth, offline-first audited weighings. */
-const VERSION = '1.2.2';
+/* Landfill Waste Weighing v1.2.3 — role-based Firebase Auth, offline-first audited weighings. */
+const VERSION = '1.2.3';
 const DB_NAME = 'landfill-waste-weighing-v1';
 const STORES = ['entries', 'trucks', 'drivers', 'outbox', 'requests'];
 const state = {entries:[],trucks:[],drivers:[],outbox:[],requests:[],editId:null,tab:'overview',logPage:0,duplicateReview:null};
