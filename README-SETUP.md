@@ -1,4 +1,4 @@
-# LANDFILL WASTE WEIGHING & MONITORING — v1.2.1
+# LANDFILL WASTE WEIGHING & MONITORING — v1.2.2
 ## In-App User Management Edition | GitHub Pages + Firebase | 8 November 2026
 
 This is a cumulative upgrade from **v1.2.0**, retaining all v1.1.2 improvements. It preserves the seven main app features: Overview, New Entry, Logbook with clickable duplicate review, Reports/CSV/print PDF, built-in AI Analytics, Fleet & Drivers, Settings and JSON backups. It adds Firebase Authentication, approval records for three roles, an Admin-only Users & Roles page, and an Admin-only Void Requests page.
@@ -11,7 +11,7 @@ This is a cumulative upgrade from **v1.2.0**, retaining all v1.1.2 improvements.
 - `app.js` — all existing features, local IndexedDB, Firestore sync, auth and role-aware screens
 - `firebase-config.js` — **your configured project** `waste-weighing-2f9a2` (not a secret)
 - `firestore.rules` — **NEW PRIVATE RBAC RULES**; publish manually in Firebase Console
-- `sw.js` — offline shell and Firebase module cache, version `v1.2.1`
+- `sw.js` — offline shell and Firebase module cache, version `v1.2.2`
 - `manifest.webmanifest` and `icon-192.png`, `icon-512.png`, `apple-touch-icon.png` — supplied icons
 - `version.json`, `.nojekyll`, `README-SETUP.md`, `TEST-CHECKLIST.md`
 
@@ -49,7 +49,7 @@ This is a cumulative upgrade from **v1.2.0**, retaining all v1.1.2 improvements.
    | `updatedAt` | number | `1793923200000` (example milliseconds) |
 
    If `members` already exists from the old private v1.0.0, **review and bring the first Admin document into this full schema** in Firebase Console. UID must match exactly. The Admin cannot create its own membership through the website.
-5. On GitHub, **upload all files from this ZIP (extracted) to the existing repository root**. Keep the same GitHub Pages URL. Wait for the GitHub Pages deployment to finish, then open the page online and verify the sign-in screen says v1.2.1 in its published files (`version.json`).
+5. On GitHub, **upload all files from this ZIP (extracted) to the existing repository root**. Keep the same GitHub Pages URL. Wait for the GitHub Pages deployment to finish, then open the page online and verify the sign-in screen says v1.2.2 in its published files (`version.json`).
 6. In **Firestore Database → Rules**, replace the old *public* rules with the `firestore.rules` in this ZIP and press **Publish**. This is essential: an app login screen alone does not secure Firebase records. Any old v1.1.x open tabs will stop syncing when the private rules are published.
 7. Visit your new GitHub Pages URL, sign in with the Admin account. Verify dashboard entries and trucks appear, access the **Users & Roles** page, and test a non-Admin account.
 8. Once the first Admin is signed in, open **Users & Roles → Create a new user**. Enter full name, email, `admin`/`encoder`/`viewer`, and a temporary password (at least 12 characters), then **Create user & assign role**. This creates the Firebase Authentication account using a separate in-memory Firebase app, retaining the current Admin session, then creates its Firestore `members/{UID}` role. Use **Edit** to change roles or disable access and **Reset password** to request an email reset. No Firebase Console steps are needed for subsequent normal user creation.
@@ -86,7 +86,7 @@ This is a cumulative upgrade from **v1.2.0**, retaining all v1.1.2 improvements.
 
 - If a user sees **Not approved**, check both their Authentication UID and `members/{UID}` document: exact role spelling, Boolean `active:true`, schema.
 - If cloud says **Permission denied**, publish the new `firestore.rules` and ensure you signed in as a valid active member.
-- If older public app shows **Sync issue** after cutover, update to v1.2.1. Do not republish the public rules to fix it.
+- If older public app shows **Sync issue** after cutover, update to v1.2.2. Do not republish the public rules to fix it.
 - **Existing local unsynced legacy entries** have `createdBy` set to a device ID from the old public release. **Sign in as an Admin on that original device** to upload, or export that device's JSON and import using an Admin device. Non-Admin upload of legacy entries is refused.
 - Membership security-rule `get()` lookups may count as Firestore reads; monitor quota/use in Firebase. Free-tier limits apply.
 - This package is **not a Cloudflare Worker integration**. It stays on GitHub Pages with Firebase. You can link to it from the existing Cloudflare website; a custom domain or protected Cloudflare-hosted version is a separate deployment.
@@ -99,7 +99,7 @@ No Firebase project was changed and no live Auth accounts or Rules were created 
 **Developed by Engr. Rico J. Pono**
 
 
-## v1.2.1 — Add users directly inside the app
+## v1.2.2 — Add users directly inside the app
 
 **One-time bootstrap only:** create the initial Admin Authentication account and `members/{UID}` document in Firebase Console as described above. After that, Admin uses **Users & Roles** in the app to create additional Admin, Encoder, and Viewer login accounts. Firebase remains the underlying authentication/database service; you no longer need to visit its console for ordinary user creation.
 
@@ -107,6 +107,21 @@ No Firebase project was changed and no live Auth accounts or Rules were created 
 
 **Security limitations:** Firebase's client-side email/password signup API can also be called by someone outside this app. The Firestore rules prevent unapproved accounts from reading or writing operational data, but this client-side approach does **not prevent outside attempts to create unapproved Authentication accounts** and can lead to signup abuse or quota pressure. To completely restrict account *creation* to Admins, use a server-side provisioning API (e.g., Cloudflare Worker with tightly protected Google credentials). Never put Firebase service-account private keys in GitHub or this ZIP.
 
-**Migration from v1.2.0:** old role code `management_viewer` is replaced with the exact required `viewer`. If any existing membership documents have `management_viewer`, the first Admin must change them to `viewer` after publishing the updated v1.2.1 rules. Existing `admin`/`encoder` roles remain unchanged. Admins should perform a complete synced backup before updating. Do not overwrite or delete existing `entries`, `drivers`, `trucks`, or IndexedDB data.
+**Migration from v1.2.0:** old role code `management_viewer` is replaced with the exact required `viewer`. If any existing membership documents have `management_viewer`, the first Admin must change them to `viewer` after publishing the updated v1.2.2 rules. Existing `admin`/`encoder` roles remain unchanged. Admins should perform a complete synced backup before updating. Do not overwrite or delete existing `entries`, `drivers`, `trucks`, or IndexedDB data.
 
 **Deactivation:** `active:false` prevents future Firestore access but doesn't delete Authentication accounts, forcibly revoke already-issued tokens, or wipe offline local data. Use trusted devices and a separate security response process when access must be revoked urgently.
+
+
+## v1.2.2 startup repair (Nov 8, 2026)
+
+Fixed the `Can't find variable: findPossibleDuplicates` error on Safari during pre-login startup. All three duplicate review functions are restored from the previously working v1.1.2 release. Without them, the initial local data rendering failed before Firebase authentication could load, producing the misleading `Firebase not initialized` message. The app also now reports startup issues separately from IndexedDB-storage failures. Firebase config and RBAC rules are byte-identical to v1.2.1; no new Firebase rules need publishing solely for this repair. The same IndexedDB database name and stores are preserved.
+
+### Deploy
+
+1. **Do not delete browsing data, the site, or the app** if local entries may be unsynced.
+2. Upload all v1.2.2 files to the same GitHub Pages repository root, replacing the old version.
+3. Visit the existing GitHub Pages URL while online; refresh/reload and check for version **v1.2.2**. If caching delays the update, append `?app-update=1.2.2` to the URL and reload.
+4. Try the Admin email/password login. If it still fails, check Firebase Authentication Email/Password sign-in, Auth Authorized domains, and the Admin `members/{uid}` document.
+5. Publish the included private firestore.rules if they have not already been published. Verify three-role access.
+
+No changes were made to your remote Firebase data or user accounts by generating this ZIP. The live Firebase login must still be checked on your deployed site.

@@ -1,4 +1,4 @@
-# Deployment acceptance checklist — v1.2.1
+# Deployment acceptance checklist — v1.2.2
 
 **Before migration**
 - [ ] Every device exports a JSON backup; document any unsynced entries.
@@ -24,7 +24,7 @@
 - [ ] Log out with pending changes; sign back in as original Encoder; verify pending work is retained and syncs.
 - [ ] Compare totals/duplicates across two devices after syncing.
 - [ ] Backup/restore from v1.1.2 retains all records; old `createdBy` device-ID events can be migrated with an Admin only.
-- [ ] iOS/Android home screen opens after online first launch; check `sw.js` cache version `v1.2.1`.
+- [ ] iOS/Android home screen opens after online first launch; check `sw.js` cache version `v1.2.2`.
 
 **Warnings**
 - A manually modified local role cache can mislead *offline UI* but must never pass server Firestore rules.
@@ -40,3 +40,6 @@
 - [ ] Check that the app displays ONLY `admin`, `encoder`, and `viewer` roles.
 - [ ] Verify old `management_viewer` memberships are migrated to `viewer` after rules publication.
 - [ ] Ensure failed membership-creation attempts leave no authorized account; review orphan cleanup status.
+
+- [ ] Confirm pre-login screen shows version 1.2.2 and no `findPossibleDuplicates` startup error.
+- [ ] Sign in as first Admin and verify Users & Roles tab.
