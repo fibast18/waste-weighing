@@ -1,4 +1,4 @@
-# Verification results — v1.2.3
+# Verification results — v1.2.4
 
 Static tests passed on 6 Nov 2026:
 - Node.js syntax checks: `app.js`, `sw.js`, `firebase-config.js`
@@ -28,6 +28,12 @@ Static checks cover isolated secondary Firebase Authentication user creation, ro
 - Verified JavaScript parse, version consistency, original Firebase config/rules hash, ZIP integrity and duplicate detection scenarios.
 - Run a browser smoke test after deployment to confirm Firebase login in your actual project.
 
-## v1.2.3 change note
+## v1.2.4 change note
 
 Sidebar developer label added above the monitoring-system label. App cache and all version labels advanced; existing Firebase config, RBAC rules and icons preserved unchanged. Static checks do not validate live Firebase or in-browser visual rendering.
+
+
+## v1.2.4 checks
+- Static JavaScript syntax and HTML ID wiring passed. A Node VM test verified event classification, correction before/after comparison, void-review decisions, date conversion, and Admin/Encoder/Viewer visibility. An isolated headless Chromium interaction test using inline HTML/CSS/JS passed the desktop/mobile sidebar, details dialog, filters and CSV download. Live URL navigation was blocked by the test environment, so the browser test did not verify a deployed Firebase login.
+- Audit Trail reads existing `entries` and `requests` stores; no new Firestore schema or rule changes.
+- Production Firebase auth/sync and multi-device behavioral tests must be completed by the deployer.

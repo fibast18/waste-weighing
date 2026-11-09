@@ -1,4 +1,4 @@
-# Deployment acceptance checklist — v1.2.3
+# Deployment acceptance checklist — v1.2.4
 
 **Before migration**
 - [ ] Every device exports a JSON backup; document any unsynced entries.
@@ -24,7 +24,7 @@
 - [ ] Log out with pending changes; sign back in as original Encoder; verify pending work is retained and syncs.
 - [ ] Compare totals/duplicates across two devices after syncing.
 - [ ] Backup/restore from v1.1.2 retains all records; old `createdBy` device-ID events can be migrated with an Admin only.
-- [ ] iOS/Android home screen opens after online first launch; check `sw.js` cache version `v1.2.2`.
+- [ ] iOS/Android home screen opens after online first launch; check `sw.js` cache version `v1.2.4`.
 
 **Warnings**
 - A manually modified local role cache can mislead *offline UI* but must never pass server Firestore rules.
@@ -44,9 +44,20 @@
 - [ ] Confirm pre-login screen shows version 1.2.2 and no `findPossibleDuplicates` startup error.
 - [ ] Sign in as first Admin and verify Users & Roles tab.
 
-## v1.2.3 UI acceptance checks
+## v1.2.4 UI acceptance checks
 
 - [ ] Desktop sidebar displays **Developed by: Engr. Rico J. Pono** directly above **LANDFILL MONITORING SYSTEM**.
 - [ ] New sidebar text wraps safely without hiding the version or navigation.
 - [ ] Existing page footer developer credit remains present.
 - [ ] Login, dashboard, all roles, sync and existing records still work as in v1.2.2.
+
+
+## v1.2.4 audit trail acceptance
+- [ ] Desktop sidebar and mobile navigation show Audit Trail for all authenticated roles.
+- [ ] Existing historic weighing events are listed chronologically, including original/corrected/voided events.
+- [ ] Filter by action, dates and search, paginate at 25 rows, and export filtered CSV.
+- [ ] Clicking View shows source ID, actor, timestamp, weights; correction comparison highlights changed values.
+- [ ] Submitted and reviewed void requests show separately from the eventual void event.
+- [ ] Admin and Viewer can browse history; Encoder sees only events created by their UID in this page.
+- [ ] No write controls in Audit Trail and no unexpected changes to Firebase rules, IndexedDB stores or existing data.
+- [ ] Safari/Chrome and iPhone/desktop test after a GitHub Pages deployment; Firebase live tests still required.

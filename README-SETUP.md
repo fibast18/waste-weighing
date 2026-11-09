@@ -1,7 +1,7 @@
-# LANDFILL WASTE WEIGHING & MONITORING — v1.2.3
+# LANDFILL WASTE WEIGHING & MONITORING — v1.2.4
 ## In-App User Management Edition | GitHub Pages + Firebase | 8 November 2026
 
-This is a cumulative upgrade from **v1.2.0**, retaining all v1.1.2 improvements. It preserves the seven main app features: Overview, New Entry, Logbook with clickable duplicate review, Reports/CSV/print PDF, built-in AI Analytics, Fleet & Drivers, Settings and JSON backups. It adds Firebase Authentication, approval records for three roles, an Admin-only Users & Roles page, and an Admin-only Void Requests page.
+This is a cumulative upgrade from **v1.2.3**, retaining all v1.1.2 improvements. It preserves all main app features: Overview, New Entry, Logbook with clickable duplicate review, Reports/CSV/print PDF, built-in AI Analytics, Fleet & Drivers, Settings and JSON backups. It retains Firebase Authentication, the three exact roles (`admin`, `encoder`, `viewer`), the Admin-only Users & Roles page, and the Admin-only Void Requests page; v1.2.4 additionally adds a read-only Audit Trail sidebar tab.
 
 **Important:** This ZIP is a release candidate needing live Firebase account-creation and Security Rules tests. Do not publish the new Rules before backing up records and creating your first Admin. Deployment does not happen automatically when you upload the ZIP.
 
@@ -11,7 +11,7 @@ This is a cumulative upgrade from **v1.2.0**, retaining all v1.1.2 improvements.
 - `app.js` — all existing features, local IndexedDB, Firestore sync, auth and role-aware screens
 - `firebase-config.js` — **your configured project** `waste-weighing-2f9a2` (not a secret)
 - `firestore.rules` — **NEW PRIVATE RBAC RULES**; publish manually in Firebase Console
-- `sw.js` — offline shell and Firebase module cache, version `v1.2.2`
+- `sw.js` — offline shell and Firebase module cache, version `v1.2.4`
 - `manifest.webmanifest` and `icon-192.png`, `icon-512.png`, `apple-touch-icon.png` — supplied icons
 - `version.json`, `.nojekyll`, `README-SETUP.md`, `TEST-CHECKLIST.md`
 
@@ -49,7 +49,7 @@ This is a cumulative upgrade from **v1.2.0**, retaining all v1.1.2 improvements.
    | `updatedAt` | number | `1793923200000` (example milliseconds) |
 
    If `members` already exists from the old private v1.0.0, **review and bring the first Admin document into this full schema** in Firebase Console. UID must match exactly. The Admin cannot create its own membership through the website.
-5. On GitHub, **upload all files from this ZIP (extracted) to the existing repository root**. Keep the same GitHub Pages URL. Wait for the GitHub Pages deployment to finish, then open the page online and verify the sign-in screen says v1.2.2 in its published files (`version.json`).
+5. On GitHub, **upload all files from this ZIP (extracted) to the existing repository root**. Keep the same GitHub Pages URL. Wait for the GitHub Pages deployment to finish, then open the page online and verify the sign-in screen says v1.2.4 in its published files (`version.json`).
 6. In **Firestore Database → Rules**, replace the old *public* rules with the `firestore.rules` in this ZIP and press **Publish**. This is essential: an app login screen alone does not secure Firebase records. Any old v1.1.x open tabs will stop syncing when the private rules are published.
 7. Visit your new GitHub Pages URL, sign in with the Admin account. Verify dashboard entries and trucks appear, access the **Users & Roles** page, and test a non-Admin account.
 8. Once the first Admin is signed in, open **Users & Roles → Create a new user**. Enter full name, email, `admin`/`encoder`/`viewer`, and a temporary password (at least 12 characters), then **Create user & assign role**. This creates the Firebase Authentication account using a separate in-memory Firebase app, retaining the current Admin session, then creates its Firestore `members/{UID}` role. Use **Edit** to change roles or disable access and **Reset password** to request an email reset. No Firebase Console steps are needed for subsequent normal user creation.
@@ -131,4 +131,24 @@ No changes were made to your remote Firebase data or user accounts by generating
 
 Added **Developed by: Engr. Rico J. Pono** directly above **LANDFILL MONITORING SYSTEM** in the desktop/laptop left sidebar footer; adjusted typography for legibility. The existing page footer credit is retained. This is a presentation-only feature update: no changes to Firestore schema, Firebase configuration, access rules, IndexedDB stores/keys, records, app calculations or permissions.
 
-**Deploy:** Extract and upload the complete v1.2.3 ZIP to the existing GitHub Pages repository root, replacing the earlier files. Open the app while online and verify v1.2.3, then check the left sidebar. If the old offline cache persists, use Settings → Check for app updates, reload, or visit the URL with `?app-update=1.2.3`. **Do not clear browser website storage or uninstall while unsynced records may exist.** No Firebase rules republishing or database migration is needed for this release.
+**Previous deployment:** Extract and upload the complete v1.2.3 ZIP to the existing GitHub Pages repository root, replacing the earlier files. Open the app while online and verify v1.2.3, then check the left sidebar. If the old offline cache persists, use Settings → Check for app updates, reload, or visit the URL with `?app-update=1.2.3`. **Do not clear browser website storage or uninstall while unsynced records may exist.** No Firebase rules republishing or database migration is needed for this release.
+
+
+## v1.2.4 — Audit Trail (Nov 9, 2026)
+
+- Added **Audit Trail** to the desktop left sidebar and smartphone navigation for all three roles.
+- Historical entries already kept in the append-only Firestore `entries` collection are displayed as **New weighing**, **Correction**, or **Voided** events. Corrections display a before/after comparison with the original event where it is cached.
+- Existing `requests` documents are displayed as **Void requested**, and, if reviewed, **Void approved** or **Void rejected**, with the review decision, staff UID, and explanation. Approval also creates an immutable void event, so both the review and its resulting action appear independently.
+- Filter by activity type, activity date range, and free-text search; browse events in 25-record pages; click **View** for full event details; export the currently filtered history to CSV.
+- **Admin and Viewer** see all synced events; **Encoder** sees a read-only history of actions recorded under their own Firebase UID in the Audit Trail. This is a *UI filter*, not a distinct Firestore read restriction: existing rules allow authenticated users to read weighings in Logbook.
+- The display uses `createdAt` or `reviewedAt` numbers and Asia/Manila time. These are device-supplied timestamps, **not tamper-proof server timestamps**; old events may be attributed to a legacy device ID rather than a named user. Unsynced local events can appear before upload; a pending badge indicates the local outbox has a queued record.
+- This new page **does not create new Firestore collections**, change existing event shapes, or migrate IndexedDB. `firestore.rules` contains the same security logic as v1.2.3 and **does not require republishing** just for v1.2.4.
+- Previous app versions did **not** preserve complete historical versions of fleet, driver, or user-role changes, nor a login history. The new page cannot reconstruct those missing events. A separate backend-validated audit collection would be required for tamper-resistant system-wide activity logging.
+
+### Deploy v1.2.4
+
+1. Export a JSON backup as Admin and verify there are **0 pending** sync operations before updating if possible. Do not delete locally stored pending events.
+2. Extract the complete ZIP, including hidden `.nojekyll`, then replace the files in `fibast18/waste-weighing` GitHub Pages repo. Do not upload the ZIP directly.
+3. Open the existing app while online. Confirm the version is **v1.2.4** in the sidebar and Settings. If the PWA still displays an older cached version, use Settings → Check for app updates or open with `?app-update=1.2.4`. Do not uninstall or clear Safari website data if you have unsynced records.
+4. Sign in as Admin and inspect **Audit Trail**; filter by Correction or Voided, open event details, and export CSV. Confirm Viewer can inspect read-only history and Encoder can see only their own actions in this page.
+5. No Firebase Console changes are necessary for this release if v1.2.3 authentication and rules were already working.

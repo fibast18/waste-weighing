@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // LANDFILL WASTE WEIGHING v1.2.1 — PRIVATE RBAC
+    // LANDFILL WASTE WEIGHING v1.2.4 — PRIVATE RBAC (rules unchanged from v1.2.3)
     // Publish only AFTER a Firebase Auth account and matching Admin member document exist.
     function memberPath() {
       return /databases/$(database)/documents/members/$(request.auth.uid);

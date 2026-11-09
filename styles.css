@@ -36,3 +36,21 @@
 
 /* v1.2.2 in-app user management */
 .password-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:7px}.show-password{display:inline-flex;align-items:center;gap:6px;font-size:12px}.show-password input{min-height:auto;width:auto;margin:0}.edit-active{display:flex;align-items:center;gap:9px;margin-top:18px}.edit-active input{width:auto;min-height:auto;margin:0}#editUserDialog{border:1px solid var(--line);border-radius:13px;box-shadow:0 24px 90px #12364b55;padding:24px;width:min(430px,calc(100vw - 28px));color:var(--text)}#editUserDialog::backdrop{background:#092a3c99}#memberCreateStatus{min-height:20px}
+
+/* v1.2.4 Audit Trail — responsive, read-only operational history */
+.audit-filter-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.audit-toolbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin:18px 0 12px;flex-wrap:wrap}
+.audit-toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}
+.audit-actor{max-width:205px;overflow-wrap:anywhere;white-space:normal}
+.audit-action{display:inline-block;white-space:nowrap;padding:4px 9px;border-radius:30px;font-size:11px;font-weight:700;background:#e9f1f7;color:#31576d}
+.audit-created{background:#e3f5ed;color:#14604c}.audit-corrected{background:#edf0ff;color:#4b5195}
+.audit-voided,.audit-rejected{background:#fff0e5;color:#a24e27}.audit-requested{background:#f3efff;color:#7254a0}.audit-approved{background:#e6f6ed;color:#206c50}
+.audit-pending{display:block;color:#aa6d1c;font-weight:700;font-size:10px;margin-top:4px}
+.audit-dialog{border:1px solid var(--line);border-radius:13px;box-shadow:0 24px 90px #12364b55;width:min(730px,calc(100vw - 28px));max-height:86vh;overflow:auto;padding:22px;color:var(--text)}
+.audit-dialog::backdrop{background:#092a3c99}.audit-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:15px}
+.audit-dialog-head h2{margin:0}.audit-detail-row{display:grid;grid-template-columns:minmax(130px,1fr) minmax(0,2fr);gap:12px;border-bottom:1px solid var(--line);padding:9px 0;font-size:12px}
+.audit-detail-row span{color:var(--muted)}.audit-detail-row strong{font-weight:600;overflow-wrap:anywhere}
+.audit-compare th,.audit-compare td{white-space:normal;overflow-wrap:anywhere}.audit-changed{background:#fff8ec}
+@media(max-width:1100px){.audit-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:570px){.audit-filter-grid{grid-template-columns:1fr}.audit-toolbar-actions,.audit-toolbar-actions .btn{width:100%}.audit-detail-row{grid-template-columns:1fr;gap:3px}}
+@media print{#page-audit{display:none!important}}

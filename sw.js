@@ -1,5 +1,5 @@
-const CACHE = 'landfill-weighing-shell-v1.2.3';
-const FILES = ['./', './index.html', './styles.css?v=1.2.3', './app.js?v=1.2.3', './firebase-config.js?v=1.2.3', './manifest.webmanifest?v=1.2.3', './version.json', './icon-192.png?v=1.2.3', './icon-512.png?v=1.2.3', './apple-touch-icon.png?v=1.2.3'];
+const CACHE = 'landfill-weighing-shell-v1.2.4';
+const FILES = ['./', './index.html', './styles.css?v=1.2.4', './app.js?v=1.2.4', './firebase-config.js?v=1.2.4', './manifest.webmanifest?v=1.2.4', './version.json', './icon-192.png?v=1.2.4', './icon-512.png?v=1.2.4', './apple-touch-icon.png?v=1.2.4'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)));
   self.skipWaiting();

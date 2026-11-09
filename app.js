@@ -1,9 +1,9 @@
 'use strict';
-/* Landfill Waste Weighing v1.2.3 — role-based Firebase Auth, offline-first audited weighings. */
-const VERSION = '1.2.3';
+/* Landfill Waste Weighing v1.2.4 — role-based Firebase Auth, offline-first audited weighings. */
+const VERSION = '1.2.4';
 const DB_NAME = 'landfill-waste-weighing-v1';
 const STORES = ['entries', 'trucks', 'drivers', 'outbox', 'requests'];
-const state = {entries:[],trucks:[],drivers:[],outbox:[],requests:[],editId:null,tab:'overview',logPage:0,duplicateReview:null};
+const state = {entries:[],trucks:[],drivers:[],outbox:[],requests:[],editId:null,tab:'overview',logPage:0,auditPage:0,duplicateReview:null};
 const cloud = {configured:false,ready:false,connecting:false,db:null,fs:null,auth:null,authFns:null,user:null,role:null,unsubs:[],membershipUnsub:null,busy:false,error:'',members:[],firebaseApp:null,appFns:null,userCreateBusy:false};
 const ROLES = ['admin','viewer','encoder'];
 const hasRole = (...roles) => !!cloud.user && roles.includes(cloud.role);
@@ -49,8 +49,8 @@ function activeTrucks(){return [...state.trucks].filter(t=>t.active).sort((a,b)=
 function activeDrivers(){return [...state.drivers].filter(d=>d.active).sort((a,b)=>sortName(a,b,'name'));}
 function selectOptions(select,items,label,anyLabel,selected){select.innerHTML=`<option value="${anyLabel==='All trucks'?'all':''}">${escapeHTML(anyLabel)}</option>`+items.map(it=>`<option value="${escapeHTML(it.id)}">${escapeHTML(it[label])}</option>`).join('');if(selected!=null)select.value=selected;}
 function refreshSelectors(){const values={truck:$('entryTruck').value,driver:$('entryDriver').value,log:$('logTruck').value,report:$('reportTruck').value};selectOptions($('entryTruck'),activeTrucks(),'code','Choose truck',values.truck);selectOptions($('entryDriver'),activeDrivers(),'name','Choose driver',values.driver);selectOptions($('logTruck'),[...state.trucks].sort((a,b)=>sortName(a,b,'code')),'code','All trucks',values.log);selectOptions($('reportTruck'),[...state.trucks].sort((a,b)=>sortName(a,b,'code')),'code','All trucks',values.report);}
-function showTab(tab){if(!cloud.role)return; if(!['overview','entry','logbook','reports','analytics','fleet','settings','users','requests'].includes(tab))return;if(['fleet','users','requests'].includes(tab)&&!isAdmin())return toast('Admin access required.',true);if(tab==='entry'&&!canWrite())return toast('Read-only access for Viewer.',true);state.tab=tab;document.querySelectorAll('.tab-page').forEach(el=>el.classList.toggle('active',el.id==='page-'+tab));document.querySelectorAll('[data-tab]').forEach(el=>el.classList.toggle('active',el.dataset.tab===tab));const titles={overview:'Dashboard Overview',entry:'New Weighing Entry',logbook:'Delivery Logbook',reports:'Reports & Exports',analytics:'AI Analytics',fleet:'Fleet & Drivers',settings:'Settings & Sync',users:'User & Role Management',requests:'Void Requests'};$('pageTitle').textContent=titles[tab];window.scrollTo({top:0,behavior:'instant'});if(tab==='reports')renderReport();if(tab==='analytics')renderAnalytics();if(tab==='users')renderUsers();if(tab==='requests')renderRequests();}
-function renderAll(){refreshSelectors();renderOverview();renderLogbook();renderReport();renderAnalytics();renderFleet();renderStorage();renderUsers();renderRequests();renderPermissions();updateStatuses();}
+function showTab(tab){if(!cloud.role)return; if(!['overview','entry','logbook','audit','reports','analytics','fleet','settings','users','requests'].includes(tab))return;if(['fleet','users','requests'].includes(tab)&&!isAdmin())return toast('Admin access required.',true);if(tab==='entry'&&!canWrite())return toast('Read-only access for Viewer.',true);state.tab=tab;document.querySelectorAll('.tab-page').forEach(el=>el.classList.toggle('active',el.id==='page-'+tab));document.querySelectorAll('[data-tab]').forEach(el=>el.classList.toggle('active',el.dataset.tab===tab));const titles={overview:'Dashboard Overview',entry:'New Weighing Entry',logbook:'Delivery Logbook',audit:'Audit Trail',reports:'Reports & Exports',analytics:'AI Analytics',fleet:'Fleet & Drivers',settings:'Settings & Sync',users:'User & Role Management',requests:'Void Requests'};$('pageTitle').textContent=titles[tab];window.scrollTo({top:0,behavior:'instant'});if(tab==='audit')renderAudit();if(tab==='reports')renderReport();if(tab==='analytics')renderAnalytics();if(tab==='users')renderUsers();if(tab==='requests')renderRequests();}
+function renderAll(){refreshSelectors();renderOverview();renderLogbook();renderAudit();renderReport();renderAnalytics();renderFleet();renderStorage();renderUsers();renderRequests();renderPermissions();updateStatuses();}
 function renderOverview(){let period=$('period').value,[from,to]=bounds(period);$('dashboardCustom').hidden=period!=='custom';let list=currentEntries().filter(e=>inRange(e,from,to));let sums=split(list);$('kTotal').textContent=kg(sums.bio+sums.nonbio);$('kBio').textContent=kg(sums.bio);$('kNonbio').textContent=kg(sums.nonbio);$('kLoads').textContent=fmt(list.length);$('kPeriod').textContent=from?`${from} to ${to}`:'All recorded loads';$('kBioShare').textContent=(total(list)?Math.round(sums.bio/total(list)*100):0)+'% of waste';$('kNonShare').textContent=(total(list)?Math.round(sums.nonbio/total(list)*100):0)+'% of waste';$('kAvg').textContent=kg(list.length?total(list)/list.length:0)+' average/load';const groups=new Map();for(const e of list){const g=groups.get(e.truckCode)||{code:e.truckCode,count:0,net:0};g.count++;g.net+=e.netKg;groups.set(e.truckCode,g);}let trucks=[...groups.values()].sort((a,b)=>b.net-a.net);$('truckBreakdown').innerHTML=trucks.length?trucks.map(g=>`<tr><td>${escapeHTML(g.code)}</td><td class="number">${fmt(g.count)}</td><td class="number"><strong>${fmt(g.net)}</strong></td></tr>`).join(''):'<tr><td colspan="3" class="empty-row">No deliveries for this period.</td></tr>';$('recentRows').innerHTML=list.length?list.slice(0,6).map(e=>`<tr><td>${escapeHTML(e.date)} ${escapeHTML(e.time)}</td><td>${escapeHTML(e.truckCode)}</td><td>${escapeHTML(e.driverName)}</td><td><span class="pill ${e.category}">${e.category==='bio'?'Bio':'Non-Bio'}</span></td><td class="number"><strong>${fmt(e.netKg)} kg</strong></td></tr>`).join(''):'<tr><td colspan="5" class="empty-row">No deliveries yet. Record your first load.</td></tr>';drawChart(list);}
 function drawChart(entries){const byDay=new Map();for(const e of entries){const g=byDay.get(e.date)||{date:e.date,bio:0,nonbio:0};g[e.category]+=e.netKg;byDay.set(e.date,g);}let days=[...byDay.values()].sort((a,b)=>a.date.localeCompare(b.date)).slice(-15);const svg=$('dailyChart');if(!days.length){svg.innerHTML='<text x="360" y="130" text-anchor="middle" fill="#8a9ba7" font-size="16">No weighing data for the selected period</text>';return;}const w=720,h=250,base=220,left=52,right=20,max=Math.max(...days.map(e=>e.bio+e.nonbio),1)*1.18;let parts=[];for(let i=0;i<=4;i++){const y=base-(i/4)*190;parts.push(`<line x1="${left}" x2="${w-right}" y1="${y}" y2="${y}" stroke="#e6edf2"/><text x="${left-9}" y="${y+4}" text-anchor="end" fill="#8293a2" font-size="11">${fmt(max*i/4).replace(/\.\d+/,'')}</text>`);}const step=(w-left-right)/days.length;days.forEach((d,i)=>{const x=left+i*step+step*.16,bw=step*.68,blue=(d.nonbio/max)*190,green=(d.bio/max)*190;parts.push(`<rect x="${x}" y="${base-blue}" width="${bw}" height="${blue}" fill="#367fc5" rx="2"><title>${d.date}: Non-Bio ${fmt(d.nonbio)} kg</title></rect>`);parts.push(`<rect x="${x}" y="${base-blue-green}" width="${bw}" height="${green}" fill="#249982" rx="2"><title>${d.date}: Bio ${fmt(d.bio)} kg</title></rect>`);parts.push(`<text x="${x+bw/2}" y="${base+17}" text-anchor="middle" fill="#8293a2" font-size="${days.length>10?10:12}">${d.date.slice(5)}</text>`);});svg.innerHTML=parts.join('')+`<title>Stacked waste kg by date; showing last ${days.length} active days in selected range</title>`;}
 function entryNet(){const tare=$('entryTare').value,gross=$('entryGross').value;const valid=tare!==''&&gross!==''&&Number(tare)>=0&&Number(gross)>=0;const net=valid?Number(gross)-Number(tare):0;$('entryNet').textContent=valid&&net>=0?kg(net):'—';$('weightError').textContent=valid&&net<0?'Gross weight cannot be lower than empty truck weight.':'';return valid&&net>=0?net:null;}
@@ -122,6 +122,120 @@ function renderLogbook(){
   $('logPrev').disabled=state.logPage===0;
   $('logNext').disabled=(state.logPage+1)*per>=entries.length;
 }
+
+// v1.2.4 Audit Trail: derived from the existing append-only weighing events and retained void requests.
+// Never synthesize a historical fleet/user modification that was not recorded by the prior app.
+const AUDIT_PER_PAGE = 25;
+const AUDIT_TYPES = {created:'New weighing',corrected:'Correction',voided:'Voided',requested:'Void requested',approved:'Void approved',rejected:'Void rejected'};
+const auditDateTime = timestamp => Number.isFinite(Number(timestamp)) && Number(timestamp)>0
+  ? new Intl.DateTimeFormat('en-PH',{timeZone:'Asia/Manila',year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:true}).format(new Date(Number(timestamp))) : 'Unknown time';
+const auditDateKey = timestamp => {
+  if(!Number.isFinite(Number(timestamp))||Number(timestamp)<=0)return '';
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(Number(timestamp))).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+};
+function auditActorName(id){
+  if(!id)return 'Unknown';
+  const profile=cloud.members.find(m=>m.uid===id);
+  if(profile)return profile.name||profile.email||id;
+  if(cloud.user?.uid===id)return cloud.user.email||id;
+  return id;
+}
+function allAuditEvents(){
+  const byId=new Map(state.entries.map(e=>[e.id,e]));
+  const events=[];
+  for(const e of state.entries){
+    const action=e.kind==='void'?'voided':e.supersedesId?'corrected':'created';
+    events.push({key:'entry:'+e.id,action,timestamp:e.createdAt||0,actorId:e.createdBy||'',entry:e,previous:byId.get(e.supersedesId)||null,request:null,sourceId:e.id});
+  }
+  for(const r of state.requests){
+    const entry=byId.get(r.entryId)||byId.get(r.rootId)||null;
+    events.push({key:'request:'+r.id+':created',action:'requested',timestamp:r.createdAt||0,actorId:r.createdBy||'',entry,previous:null,request:r,sourceId:r.id});
+    if((r.status==='approved'||r.status==='rejected')&&Number(r.reviewedAt)>0){
+      events.push({key:'request:'+r.id+':decision',action:r.status,timestamp:r.reviewedAt,actorId:r.reviewedBy||'',entry,previous:null,request:r,sourceId:r.id});
+    }
+  }
+  return events.filter(x=>isAdmin()||hasRole('viewer')||(hasRole('encoder')&&x.actorId===cloud.user.uid))
+    .sort((a,b)=>Number(b.timestamp)-Number(a.timestamp)||a.key.localeCompare(b.key));
+}
+function filteredAuditEvents(){
+  const type=$('auditType').value,from=$('auditFrom').value,to=$('auditTo').value,q=$('auditSearch').value.trim().toLowerCase();
+  return allAuditEvents().filter(x=>{
+    if(type!=='all'&&x.action!==type)return false;
+    const day=auditDateKey(x.timestamp);
+    if(from&&(!day||day<from))return false;
+    if(to&&(!day||day>to))return false;
+    if(!q)return true;
+    const e=x.entry||{},r=x.request||{};
+    return [x.action,AUDIT_TYPES[x.action],x.actorId,auditActorName(x.actorId),x.sourceId,
+      e.id,e.rootId,e.truckCode,e.driverName,e.date,e.time,e.notes,r.reason,r.decisionNote,r.entryId]
+      .some(v=>String(v??'').toLowerCase().includes(q));
+  });
+}
+function auditWeighingLabel(x){return x.entry?.date?x.entry.date+' '+(x.entry.time||''):'—';}
+function renderAudit(){
+  const list=filteredAuditEvents(), pages=Math.max(1,Math.ceil(list.length/AUDIT_PER_PAGE));
+  state.auditPage=Math.min(Math.max(0,state.auditPage),pages-1);
+  const page=list.slice(state.auditPage*AUDIT_PER_PAGE,(state.auditPage+1)*AUDIT_PER_PAGE);
+  $('auditCount').textContent=`${fmt(list.length)} matching event(s) • ${fmt(allAuditEvents().length)} available events`;
+  $('auditRows').innerHTML=page.length?page.map(x=>{
+    const e=x.entry||{}, actor=auditActorName(x.actorId),pending=state.outbox.some(o=>o.id===(x.key.startsWith('entry:')?'entries:':'requests:')+x.sourceId);
+    return `<tr><td>${escapeHTML(auditDateTime(x.timestamp))}${pending?'<span class="audit-pending">Pending sync</span>':''}</td>
+    <td><span class="audit-action audit-${x.action}">${escapeHTML(AUDIT_TYPES[x.action])}</span></td>
+    <td>${escapeHTML(auditWeighingLabel(x))}</td><td>${escapeHTML(e.truckCode||'—')}</td><td>${escapeHTML(e.driverName||'—')}</td>
+    <td class="audit-actor" title="${escapeHTML(x.actorId)}">${escapeHTML(actor)}</td><td class="number">${e.netKg==null?'—':fmt(e.netKg)}</td>
+    <td><button type="button" class="action-link" data-audit-detail="${escapeHTML(x.key)}">View</button></td></tr>`;
+  }).join(''):'<tr><td colspan="8" class="empty-row">No audit events match these filters.</td></tr>';
+  $('auditPageLabel').textContent=`Page ${state.auditPage+1} of ${pages}`;
+  $('auditPrev').disabled=state.auditPage===0;
+  $('auditNext').disabled=(state.auditPage+1)>=pages;
+}
+function auditDetailsRow(label,value){return `<div class="audit-detail-row"><span>${escapeHTML(label)}</span><strong>${escapeHTML(value??'—')}</strong></div>`;}
+function showAuditDetails(key){
+  const item=allAuditEvents().find(x=>x.key===key);if(!item)return toast('This audit event is no longer available.',true);
+  const e=item.entry,r=item.request,prev=item.previous;
+  let details=auditDetailsRow('Action',AUDIT_TYPES[item.action])+auditDetailsRow('Activity timestamp (Asia/Manila)',auditDateTime(item.timestamp))
+    +auditDetailsRow('Performed by',auditActorName(item.actorId))+auditDetailsRow('User UID / legacy device ID',item.actorId||'Unknown')
+    +auditDetailsRow('Source record ID',item.sourceId);
+  if(e){
+    details+=auditDetailsRow('Weighing date and time',auditWeighingLabel(item))+auditDetailsRow('Truck code',e.truckCode)
+      +auditDetailsRow('Driver',e.driverName)+auditDetailsRow('Classification',e.category==='bio'?'Bio':'Non-Bio')
+      +auditDetailsRow('Tare (kg)',fmt(e.tareKg))+auditDetailsRow('Gross (kg)',fmt(e.grossKg))
+      +auditDetailsRow('Net waste (kg)',fmt(e.netKg))+auditDetailsRow('Remarks / reason',e.notes||'—')
+      +auditDetailsRow('Root / ticket series ID',e.rootId||e.id)
+      +auditDetailsRow('Supersedes event ID',e.supersedesId||'None');
+  }else if(r){details+=auditDetailsRow('Related weighing ID',r.entryId||'Unknown / not cached');}
+  if(item.action==='corrected'){
+    if(prev){
+      details+='<h3>Previous vs corrected values</h3><div class="table-scroll"><table class="audit-compare"><thead><tr><th>Field</th><th>Previous event</th><th>Correction</th></tr></thead><tbody>';
+      for(const [label,prop] of [['Date','date'],['Time','time'],['Truck','truckCode'],['Driver','driverName'],['Classification','category'],['Tare kg','tareKg'],['Gross kg','grossKg'],['Net kg','netKg'],['Remarks','notes']]){
+        const older=prev[prop]??'',newer=e[prop]??'';
+        details+=`<tr class="${String(older)!==String(newer)?'audit-changed':''}"><td>${escapeHTML(label)}</td><td>${escapeHTML(older)}</td><td>${escapeHTML(newer)}</td></tr>`;
+      }
+      details+='</tbody></table></div>';
+    }else details+='<p class="muted">The superseded event is not currently cached; the prior value comparison is unavailable on this device.</p>';
+  }
+  if(r){
+    details+=auditDetailsRow('Void request ID',r.id)+auditDetailsRow('Reason supplied',r.reason)+auditDetailsRow('Request status',r.status)
+      +auditDetailsRow('Requested by UID',r.createdBy)+auditDetailsRow('Requested on',auditDateTime(r.createdAt));
+    if(r.status!=='pending')details+=auditDetailsRow('Reviewed by UID',r.reviewedBy||'Unknown')
+      +auditDetailsRow('Decision time',auditDateTime(r.reviewedAt))+auditDetailsRow('Decision explanation',r.decisionNote||'—')
+      +auditDetailsRow('Resulting void event ID',r.resolutionEventId||'None');
+    if(item.action==='requested'&&r.status!=='pending')details+='<p class="muted">This request has since been reviewed. The separate decision event shows when and by whom.</p>';
+  }
+  $('auditDetails').innerHTML=details;
+  const dialog=$('auditDialog');if(typeof dialog.showModal==='function')dialog.showModal();else dialog.setAttribute('open','');
+}
+function exportAudit(){
+  const rows=[['Activity timestamp (Asia/Manila)','Action','User','User UID / device ID','Waste date','Waste time','Truck','Driver','Category','Tare kg','Gross kg','Net kg','Remarks','Source ID','Root ID','Previous event ID','Request status','Request reason','Reviewing UID','Decision note']];
+  for(const x of filteredAuditEvents()){
+    const e=x.entry||{},r=x.request||{};
+    rows.push([auditDateTime(x.timestamp),AUDIT_TYPES[x.action],auditActorName(x.actorId),x.actorId,e.date,e.time,e.truckCode,e.driverName,e.category,e.tareKg,e.grossKg,e.netKg,e.notes,x.sourceId,e.rootId,e.supersedesId,r.status,r.reason,r.reviewedBy,r.decisionNote]);
+  }
+  downloadText(`landfill-audit-trail-${phNow().date}.csv`,makeCSV(rows),'text/csv;charset=utf-8');
+  toast('Filtered audit trail exported to CSV.');
+}
+
 function reportData(){const from=$('reportFrom').value,to=$('reportTo').value,truck=$('reportTruck').value,type=$('reportType').value;return currentEntries().filter(e=>inRange(e,from,to)&&(truck==='all'||e.truckId===truck)&&(type==='all'||e.category===type)).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));}
 function renderReport(){const entries=reportData(),sums=split(entries),bioGross=entries.filter(e=>e.category==='bio').reduce((n,e)=>n+e.grossKg,0),nonGross=entries.filter(e=>e.category==='nonbio').reduce((n,e)=>n+e.grossKg,0);const truck=$('reportTruck').value,truckName=truck==='all'?'ALL GARBAGE TRUCKS':(state.trucks.find(t=>t.id===truck)?.code||'SELECTED TRUCK');$('reportSubtitle').textContent=`${truckName} • ${$('reportFrom').value||'Beginning'} to ${$('reportTo').value||'Present'}`;$('reportRows').innerHTML=entries.length?entries.map(e=>`<tr><td>${escapeHTML(e.date)}</td><td>${escapeHTML(e.time)}</td><td>${escapeHTML(e.truckCode)}</td><td class="number">${fmt(e.tareKg)}</td><td class="number">${e.category==='nonbio'?fmt(e.grossKg):''}</td><td class="number">${e.category==='bio'?fmt(e.grossKg):''}</td><td class="number">${e.category==='nonbio'?fmt(e.netKg):''}</td><td class="number">${e.category==='bio'?fmt(e.netKg):''}</td><td>${escapeHTML(e.driverName)}</td></tr>`).join(''):'<tr><td colspan="9" class="empty-row">No weighings match this report.</td></tr>';$('reportFooter').innerHTML=`<tr><td colspan="4">TOTAL • ${fmt(entries.length)} LOADS</td><td class="number">${fmt(nonGross)}</td><td class="number">${fmt(bioGross)}</td><td class="number">${fmt(sums.nonbio)}</td><td class="number">${fmt(sums.bio)}</td><td></td></tr>`;$('reportSummary').textContent=`GRAND TOTAL NET WASTE: ${kg(sums.bio+sums.nonbio)}  |  Bio: ${kg(sums.bio)}  |  Non-Bio: ${kg(sums.nonbio)}`;}
 function csvCell(v){let s=String(v??'');if(/^[\s]*[=+@-]/.test(s)&&!/^\d{4}-\d{2}-\d{2}$/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
@@ -247,7 +361,7 @@ function listenToCloud(){
   }
   if(isAdmin()){
     cloud.unsubs.push(cloud.fs.onSnapshot(cloud.fs.collection(cloud.db,'members'),snapshot=>{
-      cloud.members=snapshot.docs.map(d=>({uid:d.id,...d.data()}));renderUsers();
+      cloud.members=snapshot.docs.map(d=>({uid:d.id,...d.data()}));renderUsers();renderAudit();
     },e=>{cloud.error='Members: '+safeError(e);updateStatuses();}));
   }
 }
@@ -384,6 +498,6 @@ async function decideRequest(id,approve){
 }
 
 async function checkUpdates(){if(!navigator.onLine)return toast('Internet is required to check for updates.',true);try{const resp=await fetch('./version.json?check='+Date.now(),{cache:'no-store'});if(!resp.ok)throw Error('Version file is not available');const data=await resp.json();if(data.version&&data.version!==VERSION){if(confirm(`Published version ${data.version} differs from installed ${VERSION}. Reload to get the latest app? Ensure local data is backed up first.`)){const reg=await navigator.serviceWorker?.getRegistration();if(reg){await reg.update();reg.waiting?.postMessage('SKIP_WAITING');}const url=new URL(location.href);url.searchParams.set('app-update',data.version);location.replace(url.href);}}else toast('You are using the latest published version ('+VERSION+').');}catch(e){toast('Unable to check updates: '+safeError(e),true);}}
-function bindUI(){document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.go)));$('quickAdd').addEventListener('click',()=>{resetEntry();showTab('entry');});for(const id of ['period','dashFrom','dashTo'])$(id).addEventListener('change',renderOverview);for(const id of ['logSearch','logType','logTruck'])$(id).addEventListener(id==='logSearch'?'input':'change',()=>{state.logPage=0;renderLogbook();});$('logPrev').onclick=()=>{state.logPage--;renderLogbook();};$('logNext').onclick=()=>{state.logPage++;renderLogbook();};$('entryTruck').onchange=()=>{if(state.editId)return;const t=state.trucks.find(x=>x.id===$('entryTruck').value);if(t)$('entryTare').value=t.tareKg;entryNet();};for(const id of ['entryTare','entryGross'])$(id).addEventListener('input',entryNet);$('entryForm').addEventListener('submit',ev=>void submitEntry(ev));$('resetEntry').addEventListener('click',resetEntry);$('addFromEntry').onclick=()=>isAdmin()?showTab('fleet'):toast('Ask the Admin to register trucks or drivers.',true);$('analysisQuality').addEventListener('click',ev=>{if(ev.target.closest('[data-review-duplicates]'))reviewDuplicates();});$('clearDuplicateReview').addEventListener('click',clearDuplicateReview);$('logRows').addEventListener('click',ev=>{const b=ev.target.closest('button');if(b?.dataset.edit)editEntry(b.dataset.edit);if(b?.dataset.void)void voidEntry(b.dataset.void);});for(const id of ['reportFrom','reportTo','reportTruck','reportType'])$(id).addEventListener('change',renderReport);$('buildReport').onclick=renderReport;$('printReport').onclick=()=>{renderReport();window.print();};$('exportReport').onclick=()=>exportCSV(reportData(),`landfill-report-${$('reportFrom').value||'all'}-${$('reportTo').value||'all'}.csv`);$('aiPeriod').onchange=renderAnalytics;$('refreshAI').onclick=renderAnalytics;$('truckForm').addEventListener('submit',ev=>void addTruck(ev));$('driverForm').addEventListener('submit',ev=>void addDriver(ev));$('truckRows').onclick=ev=>{const b=ev.target.closest('button');if(b?.dataset.truckEdit)void fleetAction('truck',b.dataset.truckEdit,'edit');if(b?.dataset.truckToggle)void fleetAction('truck',b.dataset.truckToggle,'toggle');};$('driverRows').onclick=ev=>{const b=ev.target.closest('button');if(b?.dataset.driverEdit)void fleetAction('driver',b.dataset.driverEdit,'edit');if(b?.dataset.driverToggle)void fleetAction('driver',b.dataset.driverToggle,'toggle');};$('exportBackup').onclick=()=>void exportBackup();$('importBackup').addEventListener('change',ev=>void importBackup(ev));$('exportAllCSV').onclick=()=>exportCSV(currentEntries().sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)),`landfill-all-records-${phNow().date}.csv`);$('checkUpdates').onclick=()=>void checkUpdates();$('syncNow').onclick=()=>{if(!cloud.user||!cloud.role)return toast('Sign in first.',true);if(!cloud.ready)void connectFirebase();else void flushOutbox();};window.addEventListener('online',()=>{updateStatuses();if(cloud.auth&&cloud.user)void authorizeUser(cloud.user);else if(!cloud.auth)void connectFirebase();});window.addEventListener('offline',updateStatuses);$('loginForm').addEventListener('submit',ev=>void submitLogin(ev));$('signOutTop').onclick=()=>void signOut();$('signOutSettings').onclick=()=>void signOut();$('signOutGate').onclick=()=>void signOut();$('memberForm').addEventListener('submit',ev=>void addMember(ev));$('generateMemberPassword').onclick=generateTemporaryPassword;$('showMemberPassword').onchange=ev=>{$('memberPassword').type=ev.target.checked?'text':'password';};$('editMemberForm').addEventListener('submit',ev=>void saveMemberEdit(ev));$('cancelMemberEdit').onclick=()=>{$('editUserDialog').close?.();$('editUserDialog').hidden=true;};$('userRows').addEventListener('click',ev=>{const e=ev.target.closest('[data-user-edit]'),r=ev.target.closest('[data-user-reset]');if(e)editMember(e.dataset.userEdit);if(r)void sendMemberReset(r.dataset.userReset);});$('requestRows').addEventListener('click',ev=>{const a=ev.target.closest('[data-request-approve]'),r=ev.target.closest('[data-request-reject]');if(a)void decideRequest(a.dataset.requestApprove,true);if(r)void decideRequest(r.dataset.requestReject,false);});}
+function bindUI(){document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.go)));$('quickAdd').addEventListener('click',()=>{resetEntry();showTab('entry');});for(const id of ['period','dashFrom','dashTo'])$(id).addEventListener('change',renderOverview);for(const id of ['logSearch','logType','logTruck'])$(id).addEventListener(id==='logSearch'?'input':'change',()=>{state.logPage=0;renderLogbook();});$('logPrev').onclick=()=>{state.logPage--;renderLogbook();};$('logNext').onclick=()=>{state.logPage++;renderLogbook();};for(const id of ['auditType','auditFrom','auditTo','auditSearch'])$(id).addEventListener(id==='auditSearch'?'input':'change',()=>{state.auditPage=0;renderAudit();});$('auditClear').onclick=()=>{$('auditType').value='all';$('auditFrom').value='';$('auditTo').value='';$('auditSearch').value='';state.auditPage=0;renderAudit();};$('auditExport').onclick=exportAudit;$('auditPrev').onclick=()=>{state.auditPage--;renderAudit();};$('auditNext').onclick=()=>{state.auditPage++;renderAudit();};$('auditRows').addEventListener('click',ev=>{const b=ev.target.closest('[data-audit-detail]');if(b)showAuditDetails(b.dataset.auditDetail);});$('auditClose').onclick=()=>{$('auditDialog').close?.();$('auditDialog').removeAttribute('open');};$('entryTruck').onchange=()=>{if(state.editId)return;const t=state.trucks.find(x=>x.id===$('entryTruck').value);if(t)$('entryTare').value=t.tareKg;entryNet();};for(const id of ['entryTare','entryGross'])$(id).addEventListener('input',entryNet);$('entryForm').addEventListener('submit',ev=>void submitEntry(ev));$('resetEntry').addEventListener('click',resetEntry);$('addFromEntry').onclick=()=>isAdmin()?showTab('fleet'):toast('Ask the Admin to register trucks or drivers.',true);$('analysisQuality').addEventListener('click',ev=>{if(ev.target.closest('[data-review-duplicates]'))reviewDuplicates();});$('clearDuplicateReview').addEventListener('click',clearDuplicateReview);$('logRows').addEventListener('click',ev=>{const b=ev.target.closest('button');if(b?.dataset.edit)editEntry(b.dataset.edit);if(b?.dataset.void)void voidEntry(b.dataset.void);});for(const id of ['reportFrom','reportTo','reportTruck','reportType'])$(id).addEventListener('change',renderReport);$('buildReport').onclick=renderReport;$('printReport').onclick=()=>{renderReport();window.print();};$('exportReport').onclick=()=>exportCSV(reportData(),`landfill-report-${$('reportFrom').value||'all'}-${$('reportTo').value||'all'}.csv`);$('aiPeriod').onchange=renderAnalytics;$('refreshAI').onclick=renderAnalytics;$('truckForm').addEventListener('submit',ev=>void addTruck(ev));$('driverForm').addEventListener('submit',ev=>void addDriver(ev));$('truckRows').onclick=ev=>{const b=ev.target.closest('button');if(b?.dataset.truckEdit)void fleetAction('truck',b.dataset.truckEdit,'edit');if(b?.dataset.truckToggle)void fleetAction('truck',b.dataset.truckToggle,'toggle');};$('driverRows').onclick=ev=>{const b=ev.target.closest('button');if(b?.dataset.driverEdit)void fleetAction('driver',b.dataset.driverEdit,'edit');if(b?.dataset.driverToggle)void fleetAction('driver',b.dataset.driverToggle,'toggle');};$('exportBackup').onclick=()=>void exportBackup();$('importBackup').addEventListener('change',ev=>void importBackup(ev));$('exportAllCSV').onclick=()=>exportCSV(currentEntries().sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)),`landfill-all-records-${phNow().date}.csv`);$('checkUpdates').onclick=()=>void checkUpdates();$('syncNow').onclick=()=>{if(!cloud.user||!cloud.role)return toast('Sign in first.',true);if(!cloud.ready)void connectFirebase();else void flushOutbox();};window.addEventListener('online',()=>{updateStatuses();if(cloud.auth&&cloud.user)void authorizeUser(cloud.user);else if(!cloud.auth)void connectFirebase();});window.addEventListener('offline',updateStatuses);$('loginForm').addEventListener('submit',ev=>void submitLogin(ev));$('signOutTop').onclick=()=>void signOut();$('signOutSettings').onclick=()=>void signOut();$('signOutGate').onclick=()=>void signOut();$('memberForm').addEventListener('submit',ev=>void addMember(ev));$('generateMemberPassword').onclick=generateTemporaryPassword;$('showMemberPassword').onchange=ev=>{$('memberPassword').type=ev.target.checked?'text':'password';};$('editMemberForm').addEventListener('submit',ev=>void saveMemberEdit(ev));$('cancelMemberEdit').onclick=()=>{$('editUserDialog').close?.();$('editUserDialog').hidden=true;};$('userRows').addEventListener('click',ev=>{const e=ev.target.closest('[data-user-edit]'),r=ev.target.closest('[data-user-reset]');if(e)editMember(e.dataset.userEdit);if(r)void sendMemberReset(r.dataset.userReset);});$('requestRows').addEventListener('click',ev=>{const a=ev.target.closest('[data-request-approve]'),r=ev.target.closest('[data-request-reject]');if(a)void decideRequest(a.dataset.requestApprove,true);if(r)void decideRequest(r.dataset.requestReject,false);});}
 async function initialize(){try{document.querySelectorAll('[data-app-version]').forEach(el=>el.textContent=VERSION);database=await openDatabase();const now=phNow();for(const id of ['entryDate','reportTo','dashTo'])$(id).value=now.date;for(const id of ['reportFrom','dashFrom'])$(id).value=now.date.slice(0,7)+'-01';$('entryTime').value=now.time;bindUI();await reload();showGate('Checking Firebase authentication…');if('serviceWorker' in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('Offline worker registration failed:',e));}void connectFirebase();}catch(e){$('authMessage').textContent='App startup failed before login: '+safeError(e);document.querySelector('.content').innerHTML=`<div class="panel"><h2>App startup issue</h2><p>The app could not finish starting. Your saved weighing records have not been intentionally changed or cleared. Reopen while online after installing the fixed release.</p><p class="danger-text">${escapeHTML(safeError(e))}</p></div>`;}}
 initialize();
