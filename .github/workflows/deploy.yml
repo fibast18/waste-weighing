@@ -1,0 +1,108 @@
+name: Landfill Weighing CI/CD
+
+# Every main-branch change runs checks and publishes to GitHub Pages.
+# Pull requests run checks only. Manual reruns are available in Actions.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: landfill-pages
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check firebase-config.js
+          node --check sw.js
+
+      - name: Check required files, version, and domain
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+          const required = [
+            'index.html', 'app.js', 'styles.css', 'firebase-config.js',
+            'sw.js', 'manifest.webmanifest', 'version.json',
+            'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
+            'CNAME', '.nojekyll'
+          ];
+          for (const file of required) {
+            assert.ok(fs.existsSync(file), 'Missing required website file: ' + file);
+          }
+          const version = JSON.parse(fs.readFileSync('version.json', 'utf8')).version;
+          const html = fs.readFileSync('index.html', 'utf8');
+          const app = fs.readFileSync('app.js', 'utf8');
+          const worker = fs.readFileSync('sw.js', 'utf8');
+          const manifest = JSON.parse(fs.readFileSync('manifest.webmanifest', 'utf8'));
+          const config = fs.readFileSync('firebase-config.js', 'utf8');
+          assert.match(version, /^\d+\.\d+\.\d+$/, 'Invalid version');
+          assert.ok(app.includes("const VERSION = '" + version + "'"), 'app.js version mismatch');
+          assert.ok(worker.includes('landfill-weighing-shell-v' + version), 'Service-worker cache version mismatch');
+          assert.ok(html.includes('./app.js?v=' + version), 'HTML app script version mismatch');
+          assert.ok(html.includes('./styles.css?v=' + version), 'HTML stylesheet version mismatch');
+          assert.ok(html.includes('./firebase-config.js?v=' + version), 'HTML Firebase config version mismatch');
+          assert.ok(html.includes('data-app-version>' + version + '</span>'), 'Visible app version mismatch');
+          assert.ok(manifest.icons.every(x => x.src.includes('v=' + version)), 'PWA icons version mismatch');
+          assert.equal(fs.readFileSync('CNAME', 'utf8').trim(), 'waste.mysomis.com', 'Custom domain mismatch');
+          assert.ok(config.includes('waste-weighing-2f9a2'), 'Expected Firebase project not configured');
+          console.log('PASS: JavaScript, assets, version ' + version + ', Firebase project and custom domain');
+          NODE
+
+  deploy:
+    name: Publish GitHub Pages
+    needs: validate
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Prepare only public website files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site-dist
+          for file in index.html app.js styles.css firebase-config.js sw.js manifest.webmanifest version.json icon-192.png icon-512.png apple-touch-icon.png CNAME .nojekyll; do
+            cp -- "$file" site-dist/
+          done
+          echo "Prepared website files, including CNAME and offline service worker."
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./site-dist
+
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4
